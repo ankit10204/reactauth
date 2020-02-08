@@ -4,6 +4,10 @@ namespace App\Http\Controllers;
 
 use Illuminate\Support\Facades\Auth;
 use App\Http\Controllers\Controller;
+use JWTAuth;
+use Tymon\JWTAuth\Exceptions\JWTException;
+use Validator;
+use Illuminate\Http\Request;
 
 class AuthController extends Controller
 {
@@ -22,12 +26,21 @@ class AuthController extends Controller
      *
      * @return \Illuminate\Http\JsonResponse
      */
-    public function login()
+    public function login(Request $request)
     {
+        $validation = Validator::make($request->all(), [
+            'email' => 'required|string',
+            'password' => 'required|string',
+        ]);
+
+        if ($validation->fails()){
+            return response()->json(['status'=>401,'errors'=>$validation->messages()]);
+        }
+
         $credentials = request(['email', 'password']);
 
         if (! $token = auth()->attempt($credentials)) {
-            return response()->json(['error' => 'Unauthorized'], 401);
+            return response()->json(['errors' => 'Unauthorized'], 401);
         }
 
         return $this->respondWithToken($token);
@@ -40,6 +53,7 @@ class AuthController extends Controller
      */
     public function me()
     {
+        
         return response()->json(auth()->user());
     }
 
@@ -77,7 +91,8 @@ class AuthController extends Controller
         return response()->json([
             'access_token' => $token,
             'token_type' => 'bearer',
-            'expires_in' => auth()->factory()->getTTL() * 60
+            'expires_in' => auth()->factory()->getTTL() * 60,
+            'user' => auth()->user(),
         ]);
     }
 }

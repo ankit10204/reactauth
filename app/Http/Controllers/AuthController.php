@@ -8,9 +8,15 @@ use JWTAuth;
 use Tymon\JWTAuth\Exceptions\JWTException;
 use Validator;
 use Illuminate\Http\Request;
+use Illuminate\Foundation\Auth\SendsPasswordResetEmails;
+use Illuminate\Foundation\Auth\ResetsPasswords;
+
+// trait SendsPasswordResetEmails;
+// trait ResetsPasswords;
 
 class AuthController extends Controller
-{
+{  
+    
     /**
      * Create a new AuthController instance.
      *
@@ -18,7 +24,7 @@ class AuthController extends Controller
      */
     public function __construct()
     {
-        $this->middleware('auth:api', ['except' => ['login']]);
+        $this->middleware('auth:api', ['except' => ['login','sendPasswordResetLink','sendResetLinkResponse','sendResetLinkFailedResponse','callResetPassword']]);
     }
 
     /**
@@ -29,7 +35,7 @@ class AuthController extends Controller
     public function login(Request $request)
     {
         $validation = Validator::make($request->all(), [
-            'email' => 'required|string',
+            'email' => 'required|email',
             'password' => 'required|string',
         ]);
 
@@ -89,10 +95,63 @@ class AuthController extends Controller
     protected function respondWithToken($token)
     {
         return response()->json([
+            'status' => 200,
             'access_token' => $token,
             'token_type' => 'bearer',
             'expires_in' => auth()->factory()->getTTL() * 60,
             'user' => auth()->user(),
         ]);
     }
+  trait SendsPasswordResetEmails{
+     /**
+     * Send password reset link. 
+     */
+    public function sendPasswordResetLink(Request $request)
+    {   
+        $validation = Validator::make($request->all(), [
+            'email' => 'required|email',
+        ]);
+
+        if ($validation->fails()){
+            return response()->json(['status'=>401,'errors'=>$validation->messages()]);
+        }
+        
+        return $this->sendResetLinkEmail($request);
+    }
+        /**
+     * Get the response for a successful password reset link.
+     *
+     * @param  \Illuminate\Http\Request  $request
+     * @param  string  $response
+     * @return \Illuminate\Http\RedirectResponse|\Illuminate\Http\JsonResponse
+     */
+    protected function sendResetLinkResponse(Request $request, $response)
+    {
+        return response()->json([
+            'message' => 'Password reset email sent.',
+            'data' => $response
+        ]);
+    }
+
+    /**
+     * Get the response for a failed password reset link.
+     *
+     * @param  \Illuminate\Http\Request  $request
+     * @param  string  $response
+     * @return \Illuminate\Http\RedirectResponse|\Illuminate\Http\JsonResponse
+     */
+    protected function sendResetLinkFailedResponse(Request $request, $response)
+    {
+        return response()->json(['message' => 'Email could not be sent to this email address.']);
+    }
+
+    /**
+     * Handle reset password 
+     */
+    public function callResetPassword(Request $request)
+    {   
+
+        return $this->reset($request);
+    }
+  }  
 }
